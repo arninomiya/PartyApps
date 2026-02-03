@@ -48,7 +48,7 @@
     .choice.selected{border-color:rgba(96,165,250,.7);background:rgba(96,165,250,.12);}
     .badge{min-width:28px;height:28px;border-radius:10px;display:flex;align-items:center;justify-content:center;
       background:rgba(96,165,250,.18);border:1px solid rgba(96,165,250,.35);font-weight:900;}
-    .toast{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-size:13px;}
+    .toast{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-size:13px;line-height:1.5;}
     .toast.good{border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.12);}
     .toast.bad{border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.12);}
     .toast.warn{border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.10);}
@@ -63,10 +63,8 @@
     .footer{margin-top:18px;color:rgba(229,231,235,.35);font-size:12px;line-height:1.6;}
   </style>
 
-  
-  <!-- QR生成（CDN）。もしネットワークで弾かれたらURL文字列を配布で代替 -->
+  <!-- QR生成（CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-
 </head>
 
 <body>
@@ -142,7 +140,7 @@
           <canvas id="qrCanvas" width="180" height="180" style="background:#fff;border-radius:12px;"></canvas>
           <div class="muted">
             QRが表示されない場合は上のURLを共有してください。<br/>
-            <span class="mono">?mode=display&room=ROOM</span> で表示モード。
+            <span class="mono">?mode=display&amp;room=ROOM</span> で表示モード。
           </div>
         </div>
 
@@ -171,7 +169,6 @@
 
       <div class="footer">
         <div>✅ 参加者UI：GitHub Pages / 司会UI：Azure Admin（Easy Auth）想定</div>
-        <div>✅ CORS はホスト（<span class="mono">https://arninomiya.github.io</span>）を許可している前提[4](https://note.com/ai__worker/n/n02704e6cd5b3)</div>
       </div>
     </div>
 
@@ -206,13 +203,12 @@
 
 <script>
 /** =========================================================
- * ✅ ここだけ必ず置換：あなたの Public Function の API ベースURL
- * 例: https://func-quiz-public-2286425999.azurewebsites.net/api
+ * ✅ Public Function の API ベースURL
  * ========================================================= */
 const API_BASE = "https://func-quiz-public-2286425999.azurewebsites.net/api";
 
 /** =========================================================
- * クイズ（7問・3択）※必要なら差し替え
+ * クイズ（7問・3択）
  * ========================================================= */
 const QUIZ = [
   {
@@ -279,6 +275,7 @@ const QUIZ = [
       "Threads等のオプション機能では履歴などの保存が発生します。"
   }
 ];
+
 const state = {
   mode: "participant",  // participant | display
   roomId: "",
@@ -287,8 +284,7 @@ const state = {
   joinToken: "",
   ws: null,
   currentIndex: 0,
-  voted: new Set(),     // 投票済み qIndex
-  lastResults: null,
+  voted: new Set(),
   resultsTimer: null
 };
 
@@ -309,20 +305,28 @@ const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn");
 const apiBaseText=$("apiBaseText"), lsText=$("lsText"), logBox=$("logBox");
 
 // utils
-function log(msg){ const t=new Date().toLocaleTimeString(); logBox.textContent=`[${t}] ${msg}\n`+logBox.textContent; }
-function showBanner(type, text){ banner.className=`toast ${type}`; banner.textContent=text; banner.classList.remove("hidden"); }
+function log(msg){
+  const t=new Date().toLocaleTimeString();
+  logBox.textContent = `[${t}] ${msg}\n` + logBox.textContent;
+}
+function showBanner(type, text){
+  banner.className=`toast ${type}`;
+  banner.textContent=text;
+  banner.classList.remove("hidden");
+}
 function clearBanner(){ banner.classList.add("hidden"); }
-function showToast(type, text){
+function showToast(type, htmlOrText){
   const d=document.createElement("div");
   d.className=`toast ${type}`;
-  d.textContent=text;
+  d.innerHTML=htmlOrText;
   toastArea.prepend(d);
-  setTimeout(()=>d.remove(), 6000);
+  setTimeout(()=>d.remove(), 9000);
 }
-
 function saveLocal(){
-  const obj={ roomId:state.roomId, nickname:state.nickname, participantId:state.participantId,
-    joinToken:state.joinToken, voted:Array.from(state.voted) };
+  const obj={
+    roomId:state.roomId, nickname:state.nickname, participantId:state.participantId,
+    joinToken:state.joinToken, voted:Array.from(state.voted)
+  };
   localStorage.setItem("quizState", JSON.stringify(obj));
   renderLocalStorage();
 }
@@ -348,9 +352,26 @@ function renderLocalStorage(){
   const raw=localStorage.getItem("quizState");
   lsText.textContent = raw ? raw.slice(0,220)+(raw.length>220?"...":"") : "(empty)";
 }
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
 function getQuery(){
   const u=new URL(location.href);
-  return { mode:(u.searchParams.get("mode")||"").toLowerCase(), room:u.searchParams.get("room")||"" };
+  return {
+    mode:(u.searchParams.get("mode")||"").toLowerCase(),
+    room:(u.searchParams.get("room")||"").trim()
+  };
+}
+function makeJoinUrl(roomId){
+  const base = `${location.origin}${location.pathname}`;
+  const params = new URLSearchParams();
+  params.set("room", roomId);
+  return `${base}?${params.toString()}`;
 }
 
 async function apiPost(path, body){
@@ -362,87 +383,36 @@ async function apiPost(path, body){
   return res;
 }
 
-function getQuery() {
-  const u = new URL(location.href);
-  return {
-    mode: (u.searchParams.get("mode") || "").toLowerCase(), // "display" or ""
-    room: (u.searchParams.get("room") || "").trim()
-  };
-}
+// display mode (QR)
+function renderDisplay(){
+  const joinUrl = makeJoinUrl(state.roomId);
+  joinUrlText.textContent = joinUrl;
+  roomPill.textContent = state.roomId;
 
-function makeJoinUrl(roomId) {
-  const base = `${location.origin}${location.pathname}`; // /PartyApps/ まで
-  const params = new URLSearchParams();
-  params.set("room", roomId);
-  return `${base}?${params.toString()}`;                 // ?room=ABC123
-}
-
-function renderDisplay(roomId) {
-  // 参加URL（配布用文字列）
-  const joinUrl = makeJoinUrl(roomId);
-  const joinUrlText = document.getElementById("joinUrlText");
-  if (joinUrlText) joinUrlText.textContent = joinUrl;
-
-  // QR（Canvas）
-  const canvas = document.getElementById("qrCanvas");
-  if (canvas && window.QRCode && QRCode.toCanvas) {
-    QRCode.toCanvas(canvas, joinUrl, { width: 180, margin: 1 }, (err) => {
-      if (err) console.warn("QR generate error:", err);
-    });
-  } else {
-    console.warn("QRCode library not loaded or canvas not found. URL only.");
-  }
-}
-
-  function boot() {
-  const q = getQuery();
-
-  // --- (1) display mode（プロジェクタ表示） ---
-  if (q.mode === "display") {
-    // UI切替（あなたのHTMLに合わせてIDは調整）
-    document.getElementById("mainTitle").textContent = "表示：QR＋集計";
-    document.getElementById("joinPanel").classList.add("hidden");
-    document.getElementById("quizPanel").classList.add("hidden");
-    document.getElementById("displayPanel").classList.remove("hidden");
-
-    const roomId = q.room;
-    if (!roomId) {
-      // roomが無いとQRを作れない
-      const joinUrlText = document.getElementById("joinUrlText");
-      if (joinUrlText) {
-        joinUrlText.textContent = "URLに ?mode=display&room=ABC123 を付けて開いてください";
-      }
-      return;
+  // QR生成
+  try{
+    if(window.QRCode && QRCode.toCanvas){
+      QRCode.toCanvas(qrCanvas, joinUrl, {width:180, margin:1}, (err)=>{
+        if(err) showToast("warn","QR生成に失敗。URLを共有してください。");
+      });
+    }else{
+      showToast("warn","QRライブラリが読み込めません。URLを共有してください。");
     }
-
-    // 表示のためにpillも更新（任意）
-    document.getElementById("modePill").textContent = "display";
-    document.getElementById("roomPill").textContent = roomId;
-
-    // QR描画
-    renderDisplay(roomId);
-    return; // displayはここで終了
+  }catch(_){
+    showToast("warn","QR生成に失敗。URLを共有してください。");
   }
 
-  // --- (2) participant mode（参加者） ---
-  document.getElementById("modePill").textContent = "participant";
-
-  if (q.room) {
-    // roomを自動入力（入力ミス防止）
-    document.getElementById("roomInput").value = q.room;
-    document.getElementById("roomPill").textContent = q.room;
-  }
-
-  // 既存のイベントハンドラ初期化（あなたの既存コードがあるはず）
-  // joinBtn.onclick = join; など
+  fetchResults();
 }
-// init
+
+// init (single entry)
 function init(){
   apiBaseText.textContent = API_BASE;
 
   const q=getQuery();
   if(q.room) roomInput.value=q.room;
 
+  // mode switch
   if(q.mode==="display"){
     state.mode="display";
     modePill.textContent="display";
@@ -472,14 +442,14 @@ function init(){
 
   // display mode: roomが入ってたらQR生成
   if(state.mode==="display"){
-    const rid = (q.room || state.roomId || "").trim();
+    const rid=(q.room || state.roomId || "").trim();
     if(rid){
-      state.roomId = rid;
-      roomPill.textContent = rid;
+      state.roomId=rid;
+      roomPill.textContent=rid;
       renderDisplay();
       connectRealtime();
     }else{
-      showBanner("warn","表示モードは URL に ?room=XXXX を付けてください。");
+      showBanner("warn","表示モードは URL に ?mode=display&room=XXXX を付けてください。");
     }
   }
 
@@ -553,17 +523,36 @@ function renderQuiz(){
   });
 
   // 投票済みならヒント変更
-  if(state.voted.has(state.currentIndex)){
-    voteHint.textContent="投票済み（この問は再投票不可）";
-  }else{
-    voteHint.textContent="投票してから次へ進めます";
-  }
+  voteHint.textContent = state.voted.has(state.currentIndex)
+    ? "投票済み（この問は再投票不可）"
+    : "投票してから次へ進めます";
 
+  // 投票済みなら次へOK
   nextBtn.disabled = (state.currentIndex<QUIZ.length-1) && !state.voted.has(state.currentIndex);
   prevBtn.disabled = state.currentIndex===0;
+
+  // 投票ボタン（存在しなければ追加）
+  if(!$("voteBtn")){
+    const btn=document.createElement("button");
+    btn.id="voteBtn";
+    btn.className="primary";
+    btn.textContent="投票する（1回だけ）";
+    btn.onclick=wireVote;
+    btn.style.marginTop="10px";
+    choices.parentElement.appendChild(btn);
+  }
+  $("voteBtn").disabled = state.voted.has(state.currentIndex);
 }
 
 // vote
+function wireVote(){
+  const selected = choices.querySelector(".choice.selected");
+  if(!selected){ showToast("warn","選択肢を選んでください"); return; }
+  const all=[...choices.querySelectorAll(".choice")];
+  const idx=all.indexOf(selected);
+  submitVote(idx);
+}
+
 async function submitVote(choiceIndex){
   if(!state.joinToken) return;
   if(state.voted.has(state.currentIndex)){
@@ -573,7 +562,6 @@ async function submitVote(choiceIndex){
 
   const correct = (choiceIndex === QUIZ[state.currentIndex].correct);
 
-  // 送信
   try{
     const res=await apiPost("vote",{
       joinToken:state.joinToken,
@@ -581,6 +569,7 @@ async function submitVote(choiceIndex){
       choice:choiceIndex,
       correct
     });
+
     if(res.status===409){
       state.voted.add(state.currentIndex);
       saveLocal();
@@ -588,30 +577,24 @@ async function submitVote(choiceIndex){
       renderQuiz();
       return;
     }
+
     const text=await res.text();
     if(!res.ok) throw new Error(text);
 
     state.voted.add(state.currentIndex);
     saveLocal();
     showToast(correct?"good":"bad", correct?"正解！":"残念、不正解");
+
+    // 解説（画面に出す）
+    const ex = QUIZ[state.currentIndex].explainHtml;
+    if(ex) showToast("warn", ex);
+
     renderQuiz();
 
-    // 次へ進める
     if(state.currentIndex<QUIZ.length-1) nextBtn.disabled=false;
   }catch(e){
     showToast("bad",`投票失敗: ${e.message}`);
   }
-}
-
-// choices click -> vote button
-function wireVote(){
-  // choices から selected を拾って投票
-  const selected = choices.querySelector(".choice.selected");
-  if(!selected){ showToast("warn","選択肢を選んでください"); return; }
-  // indexは順番で取る
-  const all=[...choices.querySelectorAll(".choice")];
-  const idx=all.indexOf(selected);
-  submitVote(idx);
 }
 
 // realtime
@@ -630,24 +613,25 @@ async function connectRealtime(){
     const res=await apiPost("negotiate",{});
     const text=await res.text();
     if(!res.ok) throw new Error(text);
-    const {url}=JSON.parse(text);
+    const parsed=JSON.parse(text);
+    const url=parsed.url;
+    if(!url) throw new Error("negotiateの戻りに url がありません");
+
     const ws=new WebSocket(url);
     state.ws=ws;
 
     ws.onopen=()=>{ connPill.textContent="接続"; log("WebPubSub connected"); };
     ws.onclose=()=>{ connPill.textContent="未接続"; log("WebPubSub closed"); };
     ws.onerror=()=>{ connPill.textContent="未接続"; log("WebPubSub error"); };
+
     ws.onmessage=(e)=>{
       log("msg: "+e.data);
-      // 送信側は JSON {type:"vote" | "state", roomId, ...} を想定
       try{
         const obj=JSON.parse(e.data);
         if(obj.type==="state" && obj.roomId===state.roomId){
-          // 司会が results に切り替えたら display は自動更新
           if(obj.phase==="results" && state.mode==="display") fetchResults();
         }
         if(obj.type==="vote" && obj.roomId===state.roomId && state.mode==="display"){
-          // 連打しないため debounce
           debounceFetchResults();
         }
       }catch(_){}
@@ -669,40 +653,16 @@ function debounceFetchResults(){
   state.resultsTimer=setTimeout(fetchResults, 700);
 }
 
-// display render
-function renderDisplay(){
-  const joinUrl = `${location.origin}${location.pathname}?room=${encodeURIComponent(state.roomId)}`;
-  joinUrlText.textContent = joinUrl;
-  roomPill.textContent = state.roomId;
-
-  try{
-    if(window.QRCode){
-      QRCode.toCanvas(qrCanvas, joinUrl, {width:180, margin:1}, (err)=>{
-        if(err) showToast("warn","QR生成に失敗。URLを共有してください。");
-      });
-    }else{
-      showToast("warn","QRライブラリ未読込。URLを共有してください。");
-    }
-  }catch(_){
-    showToast("warn","QR生成に失敗。URLを共有してください。");
-  }
-
-  // 初回結果
-  fetchResults();
-}
-
-// results
+// results（未実装ならプレースホルダ）
 async function fetchResults(){
-  if(!state.roomId){ showToast("warn","RoomId が必要です。"); return; }
+  if(!state.roomId){ return; }
   try{
     const res=await fetch(`${API_BASE}/results?roomId=${encodeURIComponent(state.roomId)}`);
     if(!res.ok){
-      // results APIが無いならプレースホルダ
       drawPlaceholderCharts(`results API 未実装/取得不可（${res.status}）`);
       return;
     }
     const data=await res.json();
-    // 想定: { perQuestion:[..7], top5:[{nickname,correctCount}], totalPlayers, totalVotes }
     drawCharts(data);
   }catch(e){
     drawPlaceholderCharts("results 取得エラー");
@@ -710,7 +670,6 @@ async function fetchResults(){
 }
 
 function drawPlaceholderCharts(msg){
-  // bar
   const ctx=barCanvas.getContext("2d");
   const w=barCanvas.width=barCanvas.clientWidth*devicePixelRatio;
   const h=barCanvas.height=260*devicePixelRatio;
@@ -723,11 +682,9 @@ function drawPlaceholderCharts(msg){
 }
 
 function drawCharts(data){
-  // KPI（あれば）
   const per = data?.perQuestion || [0,0,0,0,0,0,0];
   const top = data?.top5 || [];
 
-  // bar canvas
   const ctx=barCanvas.getContext("2d");
   const w=barCanvas.width=barCanvas.clientWidth*devicePixelRatio;
   const h=barCanvas.height=260*devicePixelRatio;
@@ -737,7 +694,6 @@ function drawCharts(data){
   const bw=(w-pad*2)/per.length;
   const max=Math.max(1,...per);
 
-  // baseline
   ctx.strokeStyle="rgba(255,255,255,.18)";
   ctx.beginPath(); ctx.moveTo(pad,h-pad); ctx.lineTo(w-pad,h-pad); ctx.stroke();
 
@@ -756,7 +712,6 @@ function drawCharts(data){
     ctx.fillText(String(v), x, y-6*devicePixelRatio);
   });
 
-  // Top5
   leaderboard.innerHTML="";
   const list = top.slice(0,5);
   if(list.length===0){
@@ -779,7 +734,6 @@ function renderAll(){
   roomPill.textContent = state.roomId || "-";
   apiBaseText.textContent = API_BASE;
 
-  // participant mode
   if(state.mode==="participant"){
     displayPanel.classList.add("hidden");
     joinPanel.classList.toggle("hidden", !!state.joinToken);
@@ -787,41 +741,16 @@ function renderAll(){
 
     if(state.joinToken){
       renderQuiz();
-      mePill.textContent = state.nickname || "-";
-      progressPill.textContent = `${state.voted.size}/7`;
       roomEcho.textContent = state.roomId || "-";
-      // 投票ボタンは別途用意（簡単化のため choicesクリック→投票）
-      // ここでは choicesの selected を拾って投票するUIにする
-      // 参加者モードで「投票する」ボタンを choices下に差し込み
-      if(!$("voteBtn")){
-        const btn=document.createElement("button");
-        btn.id="voteBtn";
-        btn.className="primary";
-        btn.textContent="投票する（1回だけ）";
-        btn.onclick=wireVote;
-        btn.style.marginTop="10px";
-        choices.parentElement.appendChild(btn);
-      }
-      $("voteBtn").disabled = state.voted.has(state.currentIndex);
-      nextBtn.disabled = (state.currentIndex<QUIZ.length-1) && !state.voted.has(state.currentIndex);
     }
   }else{
-    // display mode
     joinPanel.classList.add("hidden");
     quizPanel.classList.add("hidden");
     displayPanel.classList.remove("hidden");
-    renderDisplay();
+    // displayPanelderDisplay() 済み
   }
-  renderLocalStorage();
-}
 
-function escapeHtml(s){
-  return String(s)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+  renderLocalStorage();
 }
 
 init();
