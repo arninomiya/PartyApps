@@ -389,17 +389,33 @@ function renderDisplay(){
   joinUrlText.textContent = joinUrl;
   roomPill.textContent = state.roomId;
 
-  // QR生成
+  // 失敗が見えるように banner を使う
+  clearBanner();
+
+  // qrcodejsはcanvasに直接描かないので、canvasを隠して div に出す
+  qrCanvas.style.display = "none";
+
+  let holder = document.getElementById("qrHolder");
+  if(!holder){
+    holder = document.createElement("div");
+    holder.id = "qrHolder";
+    holder.style.width = "180px";
+    holder.style.height = "180px";
+    holder.style.background = "#fff";
+    holder.style.borderRadius = "12px";
+    holder.style.display = "inline-block";
+    qrCanvas.parentElement.insertBefore(holder, qrCanvas);
+  }
+  holder.innerHTML = "";
+
   try{
-    if(window.QRCode && QRCode.toCanvas){
-      QRCode.toCanvas(qrCanvas, joinUrl, {width:180, margin:1}, (err)=>{
-        if(err) showToast("warn","QR生成に失敗。URLを共有してください。");
-      });
-    }else{
-      showToast("warn","QRライブラリが読み込めません。URLを共有してください。");
+    if (typeof window.QRCode === "function") {
+      new window.QRCode(holder, { text: joinUrl, width: 180, height: 180 });
+    } else {
+      showBanner("warn","QRライブラリ未読込（QRCodeが未定義）。qrcode.min.js の読み込みを確認してください。");
     }
-  }catch(_){
-    showToast("warn","QR生成に失敗。URLを共有してください。");
+  } catch(e){
+    showBanner("warn","QR生成に失敗。参加URLを共有してください。");
   }
 
   fetchResults();
