@@ -173,6 +173,44 @@ img, canvas, svg {
     width: 100%;
   }
 }
+    /* ===== Fix horizontal overflow on quiz page ===== */
+@media (max-width: 640px){
+
+  /* quizの箱/中身が親幅を超えないように */
+  #quizPanel, #quizPanel .qbox, #quizPanel .choices, #quizPanel .choice{
+    max-width: 100%;
+  }
+
+  /* flexの子が縮めるようにする（これが超重要） */
+  #quizPanel .choices { min-width: 0; }
+  #quizPanel .choice  { min-width: 0; width: 100%; }
+  #quizPanel .choice > * { min-width: 0; }
+
+  /* badge + 本文の2カラムで、本文がちゃんと折り返すように */
+  #quizPanel .choice { align-items: flex-start; }
+  #quizPanel .badge { flex: 0 0 auto; }                 /* badgeは固定 */
+  #quizPanel .choice > div:last-child{
+    flex: 1 1 auto;                                     /* 本文は伸び縮み */
+    overflow-wrap: anywhere;                            /* 強制改行OK */
+    word-break: break-word;
+  }
+
+  /* ボタン列が横並びで溢れるのを防ぐ（縦積み） */
+  #quizPanel .qbox .row{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #quizPanel .qbox .row button{
+    width: 100%;
+  }
+  #voteHint{ width: 100%; }
+
+  /* ついで：qtextも長文時に折り返し強化 */
+  #qText{
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
   </style>
 
 <!-- QR生成（ローカル同梱） -->
