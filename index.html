@@ -103,6 +103,28 @@ button, .choice { touch-action: manipulation; }
 .finish-title{ font-size: 18px; margin: 0 0 10px; }
 .finish-big{ font-size: 28px; font-weight: 900; margin: 8px 0; }
 .finish-sub{ color: var(--muted); font-size: 13px; line-height: 1.6; }
+    /* ===== Mobile: make it actually phone-friendly ===== */
+html { -webkit-text-size-adjust: 100%; }
+button, .choice { touch-action: manipulation; }
+
+/* 画面が狭いときは全体を1カラムに寄せる */
+@media (max-width: 640px){
+  .wrap{ padding: 14px; }
+  .grid{ gap: 12px; }
+  .grid.two{ grid-template-columns: 1fr !important; } /* 右カラムを下に回す */
+
+  /* 入力の min-width がスマホで邪魔なので潰す */
+  input{ min-width: 0 !important; }
+
+  /* 上部（ステータス pill 群）は横並び維持したいので除外。
+     それ以外の .row を縦積みにする（join/quiz/finish など）。 */
+  #joinPanel .row,
+  #quizPanel .row,
+  #finishPanel .row,
+  #displayPanel .row,
+  .qbox .row{
+    flex-direction: column;
+
   </style>
 
 <!-- QR生成（ローカル同梱） -->
