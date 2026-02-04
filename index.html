@@ -61,156 +61,84 @@
     .rank .n{width:26px;height:26px;border-radius:9px;background:rgba(96,165,250,.18);border:1px solid rgba(96,165,250,.35);
       display:flex;align-items:center;justify-content:center;font-weight:900;}
     .footer{margin-top:18px;color:rgba(229,231,235,.35);font-size:12px;line-height:1.6;}
-    /* ===== Mobile optimization ===== */
-html { -webkit-text-size-adjust: 100%; }
-button, .choice { touch-action: manipulation; }
-
-@media (max-width: 640px){
-  .wrap{ padding: 14px; }
-  h1{ font-size: 16px; }
-  .card{ padding: 14px; border-radius: 14px; }
-  .grid.two{ grid-template-columns: 1fr !important; } /* 1列に */
-  .topbar{ gap: 8px; }
-
-  /* 入力/ボタンをフル幅にして押しやすく */
-  .row{ width: 100%; }
-  input, button{
-    width: 100%;
-    min-width: 0;
-    padding: 12px 14px;
-    font-size: 16px; /* iOSの自動ズーム抑制 */
-  }
-  button{ border-radius: 14px; }
-
-  /* 選択肢のタップ領域を大きく */
-  .choice{ padding: 14px; border-radius: 14px; }
-  .qtext{ font-size: 17px; }
-  .badge{ min-width: 32px; height: 32px; border-radius: 12px; }
-
-  /* ピルは折り返し前提で見やすく */
-  .pill{ padding: 6px 10px; font-size: 12px; }
-
-  /* デバッグパネルはスマホでは邪魔なので隠す（必要なら後述のトグルで出せる） */
-  .debug-only{ display: none !important; }
-
-  /* ノッチ（safe-area）を考慮 */
-  body{
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-}
-
-/* 終了画面を気持ちよく */
-.finish-title{ font-size: 18px; margin: 0 0 10px; }
-.finish-big{ font-size: 28px; font-weight: 900; margin: 8px 0; }
-.finish-sub{ color: var(--muted); font-size: 13px; line-height: 1.6; }
-    /* ===== Mobile: make it actually phone-friendly ===== */
-html { -webkit-text-size-adjust: 100%; }
-button, .choice { touch-action: manipulation; }
-
-/* 画面が狭いときは全体を1カラムに寄せる */
-@media (max-width: 640px){
-  .wrap{ padding: 14px; }
-  .grid{ gap: 12px; }
-  .grid.two{ grid-template-columns: 1fr !important; } /* 右カラムを下に回す */
-
-  /* 入力の min-width がスマホで邪魔なので潰す */
-  input{ min-width: 0 !important; }
-
-  /* 上部（ステータス pill 群）は横並び維持したいので除外。
-     それ以外の .row を縦積みにする（join/quiz/finish など）。 */
-  #joinPanel .row,
-  #quizPanel .row,
-  #finishPanel .row,
-  #displayPanel .row,
-  .qbox .row{
-    flex-direction: column;
-    /* ===== Anti horizontal scroll (must-have) ===== */
-html, body {
+    /* ===== Mobile + No horizontal scroll (clean & strict) ===== */
+html, body{
   width: 100%;
   max-width: 100%;
   overflow-x: hidden; /* 最終防波堤 */
+  -webkit-text-size-adjust: 100%;
 }
+*, *::before, *::after{ box-sizing: border-box; }
 
-/* 長い文字列（URL/ログ/mono表示）を強制折り返し */
-.mono,
-#joinUrlText,
-#apiBaseText,
-#lsText,
-#logBox {
+img, svg, canvas{ max-width: 100%; height: auto; }
+
+/* 長い文字列（URL/ログ/mono等）の折り返し */
+.mono, #joinUrlText, #apiBaseText, #lsText, #logBox, #qText{
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+#logBox{ white-space: pre-wrap; }
 
-/* logBoxは pre なので折り返しを担保 */
-#logBox {
-  white-space: pre-wrap;
-}
-
-/* 画像/Canvas/要素が親幅を超えないように */
-img, canvas, svg {
-  max-width: 100%;
-  height: auto;
-}
-
-/* inputのmin-widthが原因になりやすいのでスマホでは完全に潰す */
-@media (max-width: 640px) {
-  input { min-width: 0 !important; }
-}
-/* ===== Mobile: rowを縦積みにして縮むように ===== */
-@media (max-width: 640px) {
-  #joinPanel .row,
-  #quizPanel .row,
-  #finishPanel .row,
-  #displayPanel .row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  #joinPanel input,
-  #joinPanel button,
-  #quizPanel button,
-  #finishPanel button {
-    width: 100%;
-  }
-}
-    /* ===== Fix horizontal overflow on quiz page ===== */
 @media (max-width: 640px){
+  .wrap{ padding: 14px; }
+  .grid{ gap: 12px; }
+  .grid.two{ grid-template-columns: 1fr !important; } /* 2カラムを1カラムへ */
 
-  /* quizの箱/中身が親幅を超えないように */
+  /* flexは “子要素が縮まない” と横スクロールの原因になるので潰す */
+  input{ min-width: 0 !important; }
+
+  /* クイズ画面の横はみ出し対策（最重要） */
   #quizPanel, #quizPanel .qbox, #quizPanel .choices, #quizPanel .choice{
     max-width: 100%;
   }
+  #quizPanel .choices{ min-width: 0; }
+  #quizPanel .choice{
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  #quizPanel .choice > *{ min-width: 0; }
 
-  /* flexの子が縮めるようにする（これが超重要） */
-  #quizPanel .choices { min-width: 0; }
-  #quizPanel .choice  { min-width: 0; width: 100%; }
-  #quizPanel .choice > * { min-width: 0; }
-
-  /* badge + 本文の2カラムで、本文がちゃんと折り返すように */
-  #quizPanel .choice { align-items: flex-start; }
-  #quizPanel .badge { flex: 0 0 auto; }                 /* badgeは固定 */
+  /* badge固定 + 本文は縮んで折り返す */
+  #quizPanel .badge{ flex: 0 0 auto; }
   #quizPanel .choice > div:last-child{
-    flex: 1 1 auto;                                     /* 本文は伸び縮み */
-    overflow-wrap: anywhere;                            /* 強制改行OK */
+    flex: 1 1 auto;
+    overflow-wrap: anywhere;
     word-break: break-word;
   }
 
-  /* ボタン列が横並びで溢れるのを防ぐ（縦積み） */
+  /* quiz内のボタン列は縦積み（横並びをやめる） */
   #quizPanel .qbox .row{
     flex-direction: column;
     align-items: stretch;
   }
   #quizPanel .qbox .row button{
     width: 100%;
+    font-size: 16px;     /* iOSズーム抑制 */
+    padding: 14px 14px;  /* タップしやすく */
+    border-radius: 14px;
   }
   #voteHint{ width: 100%; }
 
-  /* ついで：qtextも長文時に折り返し強化 */
-  #qText{
-    overflow-wrap: anywhere;
-    word-break: break-word;
+  /* 選択肢も押しやすく */
+  #quizPanel .choice{
+    padding: 16px;
+    border-radius: 16px;
   }
+  #quizPanel .badge{
+    min-width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+  #qText{ font-size: 17px; }
+
+  /* スマホではデバッグ隠す（右カラムが原因になることがある） */
+  .debug-only{ display: none !important; }
 }
+
+    
   </style>
 
 <!-- QR生成（ローカル同梱） -->
