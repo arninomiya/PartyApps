@@ -124,7 +124,55 @@ button, .choice { touch-action: manipulation; }
   #displayPanel .row,
   .qbox .row{
     flex-direction: column;
+    /* ===== Anti horizontal scroll (must-have) ===== */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden; /* 最終防波堤 */
+}
 
+/* 長い文字列（URL/ログ/mono表示）を強制折り返し */
+.mono,
+#joinUrlText,
+#apiBaseText,
+#lsText,
+#logBox {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* logBoxは pre なので折り返しを担保 */
+#logBox {
+  white-space: pre-wrap;
+}
+
+/* 画像/Canvas/要素が親幅を超えないように */
+img, canvas, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* inputのmin-widthが原因になりやすいのでスマホでは完全に潰す */
+@media (max-width: 640px) {
+  input { min-width: 0 !important; }
+}
+/* ===== Mobile: rowを縦積みにして縮むように ===== */
+@media (max-width: 640px) {
+  #joinPanel .row,
+  #quizPanel .row,
+  #finishPanel .row,
+  #displayPanel .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #joinPanel input,
+  #joinPanel button,
+  #quizPanel button,
+  #finishPanel button {
+    width: 100%;
+  }
+}
   </style>
 
 <!-- QR生成（ローカル同梱） -->
